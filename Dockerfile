@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libpng-dev \
 		libpq-dev \
 		libxml2-dev \
-        libzip-dev \
+        	libzip-dev \
 		unzip \
 	&& rm -rf /var/lib/apt/lists/*
 
