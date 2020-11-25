@@ -1,4 +1,4 @@
-FROM php:7.2-apache
+FROM php:7.4-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		bzip2 \
@@ -12,11 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		libpng-dev \
 		libpq-dev \
 		libxml2-dev \
+        libzip-dev \
 		unzip \
 	&& rm -rf /var/lib/apt/lists/*
 
+# https://doc.owncloud.org/server/8.1/admin_manual/installation/source_installation.html#prerequisites
 RUN set -ex; \
-	docker-php-ext-configure gd --with-png-dir=/usr --with-jpeg-dir=/usr; \
+	docker-php-ext-configure gd --with-jpeg=/usr; \
 	debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
 	docker-php-ext-configure ldap --with-libdir="lib/$debMultiarch"; \
 	docker-php-ext-install -j "$(nproc)" \
@@ -31,6 +33,8 @@ RUN set -ex; \
 		pgsql \
 		zip
 
+# set recommended PHP.ini settings
+# see https://secure.php.net/manual/en/opcache.installation.php
 RUN { \
 		echo 'opcache.memory_consumption=128'; \
 		echo 'opcache.interned_strings_buffer=8'; \
@@ -41,33 +45,24 @@ RUN { \
 	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
 RUN a2enmod rewrite
 
+# PECL extensions
 RUN set -ex; \
-	pecl install APCu-5.1.11; \
-	pecl install memcached-3.0.4; \
-	pecl install redis-3.1.6; \
+	pecl install apcu; \
+	pecl install memcached; \
+	pecl install redis; \
 	docker-php-ext-enable \
 		apcu \
 		memcached \
 		redis
 
-ENV OWNCLOUD_VERSION 10.0.10
-ENV OWNCLOUD_SHA256 a2efe484678c1659b9640ea247746a2174d77870d29c7d60abd565c20eb5aa84
+ENV OWNCLOUD_VERSION 10.5.0
 VOLUME /var/www/html
 
 RUN set -eux; \
 	curl -fL -o owncloud.tar.bz2 "https://download.owncloud.org/community/owncloud-${OWNCLOUD_VERSION}.tar.bz2"; \
-	curl -fL -o owncloud.tar.bz2.asc "https://download.owncloud.org/community/owncloud-${OWNCLOUD_VERSION}.tar.bz2.asc"; \
-	echo "$OWNCLOUD_SHA256 *owncloud.tar.bz2" | sha256sum -c -; \
-	export GNUPGHOME="$(mktemp -d)"; \
-
-	gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys E3036906AD9F30807351FAC32D5D5E97F6978A26; \
-	gpg --batch --verify owncloud.tar.bz2.asc owncloud.tar.bz2; \
-	command -v gpgconf && gpgconf --kill all || :; \
-	rm -r "$GNUPGHOME" owncloud.tar.bz2.asc; \
 	tar -xjf owncloud.tar.bz2 -C /usr/src/; \
 	rm owncloud.tar.bz2
 
 COPY docker-entrypoint.sh /usr/local/bin/
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
-
