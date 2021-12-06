@@ -55,7 +55,7 @@ RUN set -ex; \
 		memcached \
 		redis
 
-ENV OWNCLOUD_VERSION 10.5.0
+ENV OWNCLOUD_VERSION 10.8.0
 VOLUME /var/www/html
 
 RUN set -eux; \
